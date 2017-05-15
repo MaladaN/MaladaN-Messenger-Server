@@ -10,7 +10,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
 
-public class GetServerSQLConnectionAndHandle {
+class GetServerSQLConnectionAndHandle {
 
     static void storeConnectionInfo(ServerInit init) {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -47,7 +47,7 @@ public class GetServerSQLConnectionAndHandle {
         }
     }
 
-    static void addPasswordToCompleteAccount(byte[] username, byte[] password) {
+    static boolean addPasswordToCompleteAccount(byte[] username, byte[] password) {
 
         if (userExists(username)) {
             Connection conn = GetSQLConnection.getConn();
@@ -61,11 +61,19 @@ public class GetServerSQLConnectionAndHandle {
                     ps.setBytes(2, Server.hashData(username));
                     ps.execute();
                     conn.close();
+                    return true;
 
                 } catch (Exception e) {
                     e.printStackTrace();
+                    return false;
                 }
+
+            } else {
+                return false;
             }
+
+        } else {
+            return false;
         }
     }
 
