@@ -92,15 +92,19 @@ public class ConnectionHandler implements Runnable {
 
     private void addPasswordToAccount(SignalEncryptedPasswordSend password) throws Exception {
         byte[] decryptedPasswordHash = SignalCrypto.decryptMessage(password.getSerializedPassword(), new SignalProtocolAddress(password.getUsername(), 0));
-        GetServerSQLConnectionAndHandle.addPasswordToCompleteAccount(DatatypeConverter.parseBase64Binary(password.getUsername()), decryptedPasswordHash);
-        System.out.println("Added Account Password Successfully.");
+        RegistrationResponseState registrationResponseState = new RegistrationResponseState(GetServerSQLConnectionAndHandle.addPasswordToCompleteAccount(DatatypeConverter.parseBase64Binary(password.getUsername()), decryptedPasswordHash));
 
-        RegistrationResponseState registrationResponseState = new RegistrationResponseState(true);
-        byte[] serializedRegistrationResponseState = serializeObject(registrationResponseState);
-        EncryptedRegistrationState encryptedRegistrationState = new EncryptedRegistrationState(SignalCrypto.encryptByteMessage(serializedRegistrationResponseState, new SignalProtocolAddress(password.getUsername(), 0), null));
+        if (registrationResponseState.isValidRegistration()) {
+            System.out.println("Added Account Password Successfully.");
 
-        out.writeObject(encryptedRegistrationState);
-        out.flush();
+            byte[] serializedRegistrationResponseState = serializeObject(registrationResponseState);
+            EncryptedRegistrationState encryptedRegistrationState = new EncryptedRegistrationState(SignalCrypto.encryptByteMessage(serializedRegistrationResponseState, new SignalProtocolAddress(password.getUsername(), 0), null));
+
+            this.session = new User(true, password.getUsername());
+
+            out.writeObject(encryptedRegistrationState);
+            out.flush();
+        }
     }
 
     private void loginAccount(ServerLogin login) throws Exception {
