@@ -3,6 +3,7 @@ package net.strangled.maladan;
 
 import net.MaladaN.Tor.thoughtcrime.GetSQLConnection;
 import net.MaladaN.Tor.thoughtcrime.SendInitData;
+import net.strangled.maladan.serializables.ServerInit;
 
 import java.io.*;
 import java.sql.Connection;
