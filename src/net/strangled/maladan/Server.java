@@ -8,6 +8,7 @@ import net.i2p.client.streaming.I2PSocket;
 import net.i2p.client.streaming.I2PSocketManager;
 import net.i2p.client.streaming.I2PSocketManagerFactory;
 import net.i2p.data.PrivateKeyFile;
+import net.strangled.maladan.serializables.ServerInit;
 
 import java.io.File;
 import java.io.FileInputStream;
