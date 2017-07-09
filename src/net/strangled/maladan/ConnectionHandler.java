@@ -44,6 +44,10 @@ public class ConnectionHandler implements Runnable {
                 } else if (incoming instanceof ServerLogin) {
                     ServerLogin login = (ServerLogin) incoming;
                     loginAccount(login);
+
+                } else if (incoming instanceof User) {
+                    User requestedUser = (User) incoming;
+                    respondWithUserInformation(requestedUser);
                 }
 
             }
@@ -93,9 +97,9 @@ public class ConnectionHandler implements Runnable {
     }
 
     private void addPasswordToAccount(SignalEncryptedPasswordSend password) throws Exception {
-        byte[] decryptedPasswordHash = SignalCrypto.decryptMessage(password.getSerializedPassword(), new SignalProtocolAddress(password.getUsername(), 0));
-        byte[] decodedUsername = DatatypeConverter.parseBase64Binary(password.getUsername());
         String username = password.getUsername();
+        byte[] decryptedPasswordHash = SignalCrypto.decryptMessage(password.getSerializedPassword(), new SignalProtocolAddress(username, 0));
+        byte[] decodedUsername = DatatypeConverter.parseBase64Binary(password.getUsername());
         RegistrationResponseState registrationResponseState = new RegistrationResponseState(GetServerSQLConnectionAndHandle.addPasswordToCompleteAccount(decodedUsername, decryptedPasswordHash));
 
         if (registrationResponseState.isValidRegistration()) {
@@ -155,8 +159,26 @@ public class ConnectionHandler implements Runnable {
         }
     }
 
+    private void respondWithUserInformation(User user) throws Exception {
+
+        if (session != null) {
+            byte[] actualUsername = DatatypeConverter.parseBase64Binary(user.getUsername());
+            SendInitData data = GetServerSQLConnectionAndHandle.getConnectionInfo(actualUsername);
+
+            if (data != null) {
+                ServerResponsePreKeyBundle bundle = data.getServerResponsePreKeyBundle();
+                out.writeObject(bundle);
+                out.flush();
+            } else {
+                UserExistsState state = new UserExistsState(false);
+                out.writeObject(state);
+                out.flush();
+            }
+        }
+    }
+
     private void encryptAndSendLoginState(LoginResponseState state) throws Exception {
-        byte[] encryptedState = SignalCrypto.encryptByteMessage(serializeObject(state), new SignalProtocolAddress(this.session.getBase64Username(), 0), null);
+        byte[] encryptedState = SignalCrypto.encryptByteMessage(serializeObject(state), new SignalProtocolAddress(this.session.getUsername(), 0), null);
         EncryptedLoginState loginState = new EncryptedLoginState(encryptedState);
 
         out.writeObject(loginState);

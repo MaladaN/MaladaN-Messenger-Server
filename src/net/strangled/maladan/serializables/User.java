@@ -1,22 +1,22 @@
 package net.strangled.maladan.serializables;
 
 
-public class User {
+public class User implements java.io.Serializable {
     //Used by the server to keep track of sessions.
 
     private boolean loggedIn;
-    private String base64Username;
+    private String username;
 
-    public User(boolean loggedIn, String base64Username) {
+    public User(boolean loggedIn, String username) {
         this.loggedIn = loggedIn;
-        this.base64Username = base64Username;
+        this.username = username;
     }
 
     public boolean isLoggedIn() {
         return loggedIn;
     }
 
-    public String getBase64Username() {
-        return base64Username;
+    public String getUsername() {
+        return username;
     }
 }
