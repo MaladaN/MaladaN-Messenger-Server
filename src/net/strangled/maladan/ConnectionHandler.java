@@ -1,5 +1,6 @@
 package net.strangled.maladan;
 
+import net.MaladaN.Tor.thoughtcrime.MMessageObject;
 import net.MaladaN.Tor.thoughtcrime.SendInitData;
 import net.MaladaN.Tor.thoughtcrime.ServerResponsePreKeyBundle;
 import net.MaladaN.Tor.thoughtcrime.SignalCrypto;
@@ -10,6 +11,7 @@ import org.whispersystems.libsignal.SignalProtocolAddress;
 
 import javax.xml.bind.DatatypeConverter;
 import java.io.*;
+import java.util.ArrayList;
 
 public class ConnectionHandler implements Runnable {
     private Thread t;
@@ -48,6 +50,22 @@ public class ConnectionHandler implements Runnable {
                 } else if (incoming instanceof User) {
                     User requestedUser = (User) incoming;
                     respondWithUserInformation(requestedUser);
+
+                } else if (incoming instanceof MMessageObject) {
+                    MMessageObject messageObject = (MMessageObject) incoming;
+                    handleAndQueueMessageObject(messageObject);
+
+                }
+
+                ArrayList<MMessageObject> messageForYouSir;
+
+                if (session != null && !(messageForYouSir = ThreadComms.getMessagesForClient(session.getUsername())).isEmpty()) {
+
+                    for (MMessageObject o : messageForYouSir) {
+                        out.writeObject(o);
+                        out.flush();
+                    }
+                    ThreadComms.removeObjects(messageForYouSir);
                 }
 
             }
@@ -169,12 +187,17 @@ public class ConnectionHandler implements Runnable {
                 ServerResponsePreKeyBundle bundle = data.getServerResponsePreKeyBundle();
                 out.writeObject(bundle);
                 out.flush();
+
             } else {
                 UserExistsState state = new UserExistsState(false);
                 out.writeObject(state);
                 out.flush();
             }
         }
+    }
+
+    private void handleAndQueueMessageObject(MMessageObject object) {
+        ThreadComms.addObject(object);
     }
 
     private void encryptAndSendLoginState(LoginResponseState state) throws Exception {
