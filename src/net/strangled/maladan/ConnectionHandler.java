@@ -12,6 +12,7 @@ import org.whispersystems.libsignal.SignalProtocolAddress;
 import javax.xml.bind.DatatypeConverter;
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Vector;
 
 public class ConnectionHandler implements Runnable {
     private Thread t;
@@ -19,6 +20,7 @@ public class ConnectionHandler implements Runnable {
     private User session = null;
     private ObjectOutputStream out;
     private ObjectInputStream in;
+    private boolean running = true;
 
     ConnectionHandler(I2PSocket sock) {
         this.sock = sock;
@@ -29,6 +31,35 @@ public class ConnectionHandler implements Runnable {
         try {
             in = new ObjectInputStream(sock.getInputStream());
             out = new ObjectOutputStream(sock.getOutputStream());
+
+            Thread t = new Thread(() -> {
+
+                ArrayList<MMessageObject> messageForYouSir;
+
+                while (running) {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+
+                    if (session != null && !(messageForYouSir = ThreadComms.getMessagesForClient(session.getUsername())).isEmpty()) {
+
+                        for (MMessageObject o : messageForYouSir) {
+
+                            try {
+                                out.writeObject(o);
+                                out.flush();
+                                ThreadComms.removeObjects(messageForYouSir);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                }
+            });
+
+            t.start();
 
             while (true) {
                 Object incoming = in.readObject();
@@ -57,17 +88,6 @@ public class ConnectionHandler implements Runnable {
 
                 }
 
-                ArrayList<MMessageObject> messageForYouSir;
-
-                if (session != null && !(messageForYouSir = ThreadComms.getMessagesForClient(session.getUsername())).isEmpty()) {
-
-                    for (MMessageObject o : messageForYouSir) {
-                        out.writeObject(o);
-                        out.flush();
-                    }
-                    ThreadComms.removeObjects(messageForYouSir);
-                }
-
             }
 
         } catch (EOFException e) {
@@ -80,6 +100,7 @@ public class ConnectionHandler implements Runnable {
 
             try {
                 if (sock != null) {
+                    running = false;
                     in.close();
                     out.close();
                     sock.close();
@@ -228,5 +249,42 @@ public class ConnectionHandler implements Runnable {
             t = new Thread(this);
             t.start();
         }
+    }
+}
+
+//TODO not working, move it to the database.
+
+class ThreadComms {
+
+    private static Vector<MMessageObject> messageObjects = new Vector<>();
+
+    static synchronized boolean removeObjects(ArrayList<MMessageObject> objects) {
+        return messageObjects.removeAll(objects);
+    }
+
+    static synchronized boolean removeObject(MMessageObject object) {
+        return messageObjects.remove(object);
+    }
+
+    static synchronized boolean addObject(MMessageObject object) {
+
+        if (!messageExists(object)) {
+            return messageObjects.add(object);
+        }
+        return false;
+    }
+
+    private static boolean messageExists(MMessageObject object) {
+        return messageObjects.contains(object);
+    }
+
+    static synchronized ArrayList<MMessageObject> getMessagesForClient(String actualUsername) {
+        ArrayList<MMessageObject> messageObjects = new ArrayList<>();
+        for (MMessageObject o : messageObjects) {
+            if (o.getDestinationUser().equals(actualUsername)) {
+                messageObjects.add(o);
+            }
+        }
+        return messageObjects;
     }
 }
