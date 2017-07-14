@@ -2,6 +2,7 @@ package net.strangled.maladan;
 
 
 import net.MaladaN.Tor.thoughtcrime.GetSQLConnection;
+import net.MaladaN.Tor.thoughtcrime.MMessageObject;
 import net.MaladaN.Tor.thoughtcrime.SendInitData;
 import net.strangled.maladan.serializables.ServerInit;
 
@@ -9,6 +10,7 @@ import java.io.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.ArrayList;
 
 
 class GetServerSQLConnectionAndHandle {
@@ -173,6 +175,72 @@ class GetServerSQLConnectionAndHandle {
             e.printStackTrace();
         }
         return false;
+    }
+
+
+    static ArrayList<MMessageObject> getPendingMessagesForClient(String username) {
+        Connection conn = GetSQLConnection.getConn();
+
+        try {
+
+            if (conn != null) {
+                String sql = "SELECT * FROM escrowMessages where username = ?";
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setString(1, username);
+                ResultSet rs = ps.executeQuery();
+
+                ArrayList<MMessageObject> objects = new ArrayList<>();
+
+                while (rs.next()) {
+                    byte[] serialializedMmOBject = rs.getBytes("mMessage");
+                    MMessageObject messageObject = (MMessageObject) Server.reconstructSerializedObject(serialializedMmOBject);
+                    objects.add(messageObject);
+                }
+                conn.close();
+                return objects;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return new ArrayList<>();
+    }
+
+    static void storePendingMessage(String clientUsername, MMessageObject messageObject) {
+        Connection conn = GetSQLConnection.getConn();
+
+        try {
+
+            if (conn != null) {
+                byte[] serializedMessageObject = Server.serializeObject(messageObject);
+
+                String sql = "INSERT INTO escrowMessages (username, mMessage) VALUES (?, ?)";
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setString(1, clientUsername);
+                ps.setBytes(2, serializedMessageObject);
+                ps.execute();
+                conn.close();
+
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    static void removePendingMessages(String clientUsername) {
+        Connection conn = GetSQLConnection.getConn();
+
+        try {
+
+            if (conn != null) {
+                String sql = "DELETE FROM escrowMessages WHERE username = ?";
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setString(1, clientUsername);
+                ps.execute();
+                conn.close();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 }

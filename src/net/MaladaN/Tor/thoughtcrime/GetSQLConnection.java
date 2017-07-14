@@ -70,12 +70,16 @@ public class GetSQLConnection {
             ps = conn.prepareStatement(installedFlag);
             ps.execute();
 
-
             //Server Data Table
 
             String sql = "CREATE TABLE IF NOT EXISTS serverSignalCryptoData (id int(10) unsigned NOT NULL AUTO_INCREMENT," +
                     "hashedUsername longblob, hashedPassword longblob, pullableInitData longblob, uniqueId varchar(128),PRIMARY KEY (id))";
             ps = conn.prepareStatement(sql);
+            ps.execute();
+
+            String escrowMessages = "CREATE TABLE IF NOT EXISTS escrowMessages (id int(10) unsigned NOT NULL AUTO_INCREMENT," +
+                    "username VARCHAR(128), mMessage longblob, PRIMARY KEY(id))";
+            ps = conn.prepareStatement(escrowMessages);
             ps.execute();
 
             return conn;
