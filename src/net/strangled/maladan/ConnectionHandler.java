@@ -10,9 +10,10 @@ import org.whispersystems.libsignal.IdentityKey;
 import org.whispersystems.libsignal.SignalProtocolAddress;
 
 import javax.xml.bind.DatatypeConverter;
-import java.io.*;
+import java.io.EOFException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
-import java.util.Vector;
 
 public class ConnectionHandler implements Runnable {
     private Thread t;
@@ -43,20 +44,20 @@ public class ConnectionHandler implements Runnable {
                         e.printStackTrace();
                     }
 
-                    if (session != null && !(messageForYouSir = ThreadComms.getMessagesForClient(session.getUsername())).isEmpty()) {
+                    if (session != null && !(messageForYouSir = GetServerSQLConnectionAndHandle.getPendingMessagesForClient(session.getUsername())).isEmpty()) {
 
                         for (MMessageObject o : messageForYouSir) {
 
                             try {
-                                out.writeObject(o);
-                                out.flush();
-                                ThreadComms.removeObjects(messageForYouSir);
+                                sendObject(o);
+                                GetServerSQLConnectionAndHandle.removePendingMessages(session.getUsername());
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
                         }
                     }
                 }
+
             });
 
             t.start();
@@ -112,7 +113,7 @@ public class ConnectionHandler implements Runnable {
         }
     }
 
-    private void register(ServerInit init) throws IOException {
+    private void register(ServerInit init) throws Exception {
         System.out.println("Registering a user for the first Time.");
 
         if (init.getUniqueId().equals("tester123")) {
@@ -125,8 +126,7 @@ public class ConnectionHandler implements Runnable {
 
             if (data != null) {
                 ServerResponsePreKeyBundle ps = data.getServerResponsePreKeyBundle();
-                out.writeObject(ps);
-                out.flush();
+                sendObject(ps);
                 System.out.println("Added Username Successfully!");
             }
 
@@ -144,13 +144,12 @@ public class ConnectionHandler implements Runnable {
         if (registrationResponseState.isValidRegistration()) {
             System.out.println("Added Account Password Successfully.");
 
-            byte[] serializedRegistrationResponseState = serializeObject(registrationResponseState);
+            byte[] serializedRegistrationResponseState = Server.serializeObject(registrationResponseState);
             EncryptedRegistrationState encryptedRegistrationState = new EncryptedRegistrationState(SignalCrypto.encryptByteMessage(serializedRegistrationResponseState, new SignalProtocolAddress(username, 0), null));
 
             this.session = new User(true, username);
 
-            out.writeObject(encryptedRegistrationState);
-            out.flush();
+            sendObject(encryptedRegistrationState);
         }
     }
 
@@ -218,29 +217,19 @@ public class ConnectionHandler implements Runnable {
     }
 
     private void handleAndQueueMessageObject(MMessageObject object) {
-        ThreadComms.addObject(object);
+        GetServerSQLConnectionAndHandle.storePendingMessage(object.getDestinationUser(), object);
     }
 
     private void encryptAndSendLoginState(LoginResponseState state) throws Exception {
-        byte[] encryptedState = SignalCrypto.encryptByteMessage(serializeObject(state), new SignalProtocolAddress(this.session.getUsername(), 0), null);
+        byte[] encryptedState = SignalCrypto.encryptByteMessage(Server.serializeObject(state), new SignalProtocolAddress(this.session.getUsername(), 0), null);
         EncryptedLoginState loginState = new EncryptedLoginState(encryptedState);
 
-        out.writeObject(loginState);
-        out.flush();
+        sendObject(loginState);
     }
 
-    private byte[] serializeObject(Object object) throws IOException {
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        ObjectOutput out = new ObjectOutputStream(bos);
-        out.writeObject(object);
+    synchronized private void sendObject(Object o) throws Exception {
+        out.writeObject(o);
         out.flush();
-        return bos.toByteArray();
-    }
-
-    private Object reconstructSerializedObject(byte[] object) throws Exception {
-        ByteArrayInputStream bis = new ByteArrayInputStream(object);
-        ObjectInput in = new ObjectInputStream(bis);
-        return in.readObject();
     }
 
     void start() {
@@ -249,42 +238,5 @@ public class ConnectionHandler implements Runnable {
             t = new Thread(this);
             t.start();
         }
-    }
-}
-
-//TODO not working, move it to the database.
-
-class ThreadComms {
-
-    private static Vector<MMessageObject> messageObjects = new Vector<>();
-
-    static synchronized boolean removeObjects(ArrayList<MMessageObject> objects) {
-        return messageObjects.removeAll(objects);
-    }
-
-    static synchronized boolean removeObject(MMessageObject object) {
-        return messageObjects.remove(object);
-    }
-
-    static synchronized boolean addObject(MMessageObject object) {
-
-        if (!messageExists(object)) {
-            return messageObjects.add(object);
-        }
-        return false;
-    }
-
-    private static boolean messageExists(MMessageObject object) {
-        return messageObjects.contains(object);
-    }
-
-    static synchronized ArrayList<MMessageObject> getMessagesForClient(String actualUsername) {
-        ArrayList<MMessageObject> messageObjects = new ArrayList<>();
-        for (MMessageObject o : messageObjects) {
-            if (o.getDestinationUser().equals(actualUsername)) {
-                messageObjects.add(o);
-            }
-        }
-        return messageObjects;
     }
 }

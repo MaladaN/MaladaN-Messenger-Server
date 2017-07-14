@@ -10,9 +10,7 @@ import net.i2p.client.streaming.I2PSocketManagerFactory;
 import net.i2p.data.PrivateKeyFile;
 import net.strangled.maladan.serializables.ServerInit;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
+import java.io.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -62,6 +60,20 @@ public class Server {
             e.printStackTrace();
         }
 
+    }
+
+    static byte[] serializeObject(Object object) throws IOException {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        ObjectOutput out = new ObjectOutputStream(bos);
+        out.writeObject(object);
+        out.flush();
+        return bos.toByteArray();
+    }
+
+    static Object reconstructSerializedObject(byte[] object) throws Exception {
+        ByteArrayInputStream bis = new ByteArrayInputStream(object);
+        ObjectInput in = new ObjectInputStream(bis);
+        return in.readObject();
     }
 
     static byte[] hashData(String data) throws NoSuchAlgorithmException {
