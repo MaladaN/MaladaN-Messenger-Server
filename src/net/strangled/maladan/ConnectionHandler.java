@@ -12,15 +12,14 @@ import org.whispersystems.libsignal.SignalProtocolAddress;
 import javax.xml.bind.DatatypeConverter;
 import java.io.EOFException;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
 public class ConnectionHandler implements Runnable {
     private Thread t;
     private I2PSocket sock;
     private User session = null;
-    private ObjectOutputStream out;
     private ObjectInputStream in;
+    private OutgoingMessageThread outThread;
     private boolean running = true;
 
     ConnectionHandler(I2PSocket sock) {
@@ -31,7 +30,8 @@ public class ConnectionHandler implements Runnable {
 
         try {
             in = new ObjectInputStream(sock.getInputStream());
-            out = new ObjectOutputStream(sock.getOutputStream());
+            outThread = new OutgoingMessageThread(sock.getOutputStream());
+            outThread.start();
 
             Thread t = new Thread(() -> {
 
@@ -49,7 +49,7 @@ public class ConnectionHandler implements Runnable {
                         for (MMessageObject o : messageForYouSir) {
 
                             try {
-                                sendObject(o);
+                                outThread.addNewMessage(o);
                                 GetServerSQLConnectionAndHandle.removePendingMessages(session.getUsername());
                             } catch (Exception e) {
                                 e.printStackTrace();
@@ -103,7 +103,7 @@ public class ConnectionHandler implements Runnable {
                 if (sock != null) {
                     running = false;
                     in.close();
-                    out.close();
+                    outThread.running = false;
                     sock.close();
                 }
 
@@ -126,7 +126,7 @@ public class ConnectionHandler implements Runnable {
 
             if (data != null) {
                 ServerResponsePreKeyBundle ps = data.getServerResponsePreKeyBundle();
-                sendObject(ps);
+                outThread.addNewMessage(ps);
                 System.out.println("Added Username Successfully!");
             }
 
@@ -149,7 +149,7 @@ public class ConnectionHandler implements Runnable {
 
             this.session = new User(true, username);
 
-            sendObject(encryptedRegistrationState);
+            outThread.addNewMessage(encryptedRegistrationState);
         }
     }
 
@@ -192,8 +192,7 @@ public class ConnectionHandler implements Runnable {
             }
         } else {
             LoginResponseState state = new LoginResponseState(false);
-            out.writeObject(state);
-            out.flush();
+            outThread.addNewMessage(state);
         }
     }
 
@@ -205,13 +204,11 @@ public class ConnectionHandler implements Runnable {
 
             if (data != null) {
                 ServerResponsePreKeyBundle bundle = data.getServerResponsePreKeyBundle();
-                out.writeObject(bundle);
-                out.flush();
+                outThread.addNewMessage(bundle);
 
             } else {
                 UserExistsState state = new UserExistsState(false);
-                out.writeObject(state);
-                out.flush();
+                outThread.addNewMessage(state);
             }
         }
     }
@@ -224,12 +221,7 @@ public class ConnectionHandler implements Runnable {
         byte[] encryptedState = SignalCrypto.encryptByteMessage(Server.serializeObject(state), new SignalProtocolAddress(this.session.getUsername(), 0), null);
         EncryptedLoginState loginState = new EncryptedLoginState(encryptedState);
 
-        sendObject(loginState);
-    }
-
-    synchronized private void sendObject(Object o) throws Exception {
-        out.writeObject(o);
-        out.flush();
+        outThread.addNewMessage(loginState);
     }
 
     void start() {
