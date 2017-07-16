@@ -59,7 +59,6 @@ public class ConnectionHandler implements Runnable {
                 }
 
             });
-
             t.start();
 
             while (true) {
