@@ -78,8 +78,8 @@ public class ConnectionHandler implements Runnable {
                     ServerLogin login = (ServerLogin) incoming;
                     loginAccount(login);
 
-                } else if (incoming instanceof User) {
-                    User requestedUser = (User) incoming;
+                } else if (incoming instanceof EncryptedUser) {
+                    EncryptedUser requestedUser = (EncryptedUser) incoming;
                     respondWithUserInformation(requestedUser);
 
                 } else if (incoming instanceof MMessageObject) {
@@ -144,11 +144,11 @@ public class ConnectionHandler implements Runnable {
             System.out.println("Added Account Password Successfully.");
 
             byte[] serializedRegistrationResponseState = Server.serializeObject(registrationResponseState);
-            EncryptedRegistrationState encryptedRegistrationState = new EncryptedRegistrationState(SignalCrypto.encryptByteMessage(serializedRegistrationResponseState, new SignalProtocolAddress(username, 0), null));
+            EncryptedRegistrationResponseState encryptedRegistrationResponseState = new EncryptedRegistrationResponseState(SignalCrypto.encryptByteMessage(serializedRegistrationResponseState, new SignalProtocolAddress(username, 0), null));
 
             this.session = new User(true, username);
 
-            outThread.addNewMessage(encryptedRegistrationState);
+            outThread.addNewMessage(encryptedRegistrationResponseState);
         }
     }
 
@@ -195,13 +195,20 @@ public class ConnectionHandler implements Runnable {
         }
     }
 
-    private void respondWithUserInformation(User user) throws Exception {
+    private void respondWithUserInformation(EncryptedUser encryptedUser) throws Exception {
 
         if (session != null) {
+
+            byte[] serializedUserObject = SignalCrypto.decryptMessage(encryptedUser.getEncryptedSerializedUser(), new SignalProtocolAddress(session.getUsername(), 0));
+            User user = (User) Server.reconstructSerializedObject(serializedUserObject);
+
             byte[] actualUsername = DatatypeConverter.parseBase64Binary(user.getUsername());
             SendInitData data = GetServerSQLConnectionAndHandle.getConnectionInfo(actualUsername);
 
             if (data != null) {
+                //TODO encrypt
+                //TODO handle reception of encrypted object
+
                 ServerResponsePreKeyBundle bundle = data.getServerResponsePreKeyBundle();
                 outThread.addNewMessage(bundle);
 
@@ -218,7 +225,7 @@ public class ConnectionHandler implements Runnable {
 
     private void encryptAndSendLoginState(LoginResponseState state) throws Exception {
         byte[] encryptedState = SignalCrypto.encryptByteMessage(Server.serializeObject(state), new SignalProtocolAddress(this.session.getUsername(), 0), null);
-        EncryptedLoginState loginState = new EncryptedLoginState(encryptedState);
+        EncryptedLoginResponseState loginState = new EncryptedLoginResponseState(encryptedState);
 
         outThread.addNewMessage(loginState);
     }
