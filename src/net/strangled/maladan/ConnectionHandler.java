@@ -49,7 +49,11 @@ public class ConnectionHandler implements Runnable {
                         for (MMessageObject o : messageForYouSir) {
 
                             try {
-                                outThread.addNewMessage(o);
+                                byte[] serializedMMessageObject = Server.serializeObject(o);
+                                byte[] encryptedSerializedMessageObject = SignalCrypto.encryptByteMessage(serializedMMessageObject, new SignalProtocolAddress(session.getUsername(), 0), null);
+                                EncryptedMMessageObject object = new EncryptedMMessageObject(encryptedSerializedMessageObject);
+
+                                outThread.addNewMessage(object);
                                 GetServerSQLConnectionAndHandle.removePendingMessages(session.getUsername());
                             } catch (Exception e) {
                                 e.printStackTrace();
@@ -82,8 +86,8 @@ public class ConnectionHandler implements Runnable {
                     EncryptedUser requestedUser = (EncryptedUser) incoming;
                     respondWithUserInformation(requestedUser);
 
-                } else if (incoming instanceof MMessageObject) {
-                    MMessageObject messageObject = (MMessageObject) incoming;
+                } else if (incoming instanceof EncryptedMMessageObject) {
+                    EncryptedMMessageObject messageObject = (EncryptedMMessageObject) incoming;
                     handleAndQueueMessageObject(messageObject);
 
                 }
@@ -206,11 +210,15 @@ public class ConnectionHandler implements Runnable {
             SendInitData data = GetServerSQLConnectionAndHandle.getConnectionInfo(actualUsername);
 
             if (data != null) {
-                //TODO encrypt
-                //TODO handle reception of encrypted object
 
                 ServerResponsePreKeyBundle bundle = data.getServerResponsePreKeyBundle();
-                outThread.addNewMessage(bundle);
+
+                byte[] serializedServerResponsePreKeyBundle = Server.serializeObject(bundle);
+                byte[] encryptedSerializedServerResponeBundle = SignalCrypto.encryptByteMessage(serializedServerResponsePreKeyBundle, new SignalProtocolAddress(session.getUsername(), 0), null);
+
+                EncryptedClientPreKeyBundle encryptedClientPreKeyBundle = new EncryptedClientPreKeyBundle(encryptedSerializedServerResponeBundle);
+
+                outThread.addNewMessage(encryptedClientPreKeyBundle);
 
             } else {
                 UserExistsState state = new UserExistsState(false);
@@ -219,7 +227,10 @@ public class ConnectionHandler implements Runnable {
         }
     }
 
-    private void handleAndQueueMessageObject(MMessageObject object) {
+    private void handleAndQueueMessageObject(EncryptedMMessageObject encryptedObject) throws Exception {
+        byte[] serializedMMessageObject = SignalCrypto.decryptMessage(encryptedObject.getEncryptedSerializedMMessageObject(), new SignalProtocolAddress(session.getUsername(), 0));
+        MMessageObject object = (MMessageObject) Server.reconstructSerializedObject(serializedMMessageObject);
+
         GetServerSQLConnectionAndHandle.storePendingMessage(object.getDestinationUser(), object);
     }
 
