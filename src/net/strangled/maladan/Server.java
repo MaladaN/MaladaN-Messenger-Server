@@ -30,7 +30,7 @@ public class Server {
             e.printStackTrace();
         }
 
-        I2PSocketManager manager = I2PSocketManagerFactory.createManager(file);
+        I2PSocketManager manager = I2PSocketManagerFactory.createManager(file, "address", 7654, null);
         I2PServerSocket serverSocket = manager.getServerSocket();
         I2PSession session = manager.getSession();
 
