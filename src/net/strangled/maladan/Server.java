@@ -8,7 +8,7 @@ import net.i2p.client.streaming.I2PSocket;
 import net.i2p.client.streaming.I2PSocketManager;
 import net.i2p.client.streaming.I2PSocketManagerFactory;
 import net.i2p.data.PrivateKeyFile;
-import net.strangled.maladan.serializables.ServerInit;
+import net.strangled.maladan.serializables.Authentication.ServerInit;
 
 import java.io.*;
 import java.security.MessageDigest;
@@ -30,7 +30,7 @@ public class Server {
             e.printStackTrace();
         }
 
-        I2PSocketManager manager = I2PSocketManagerFactory.createManager(file, "address", 7654, null);
+        I2PSocketManager manager = I2PSocketManagerFactory.createManager(file, "1.1.1.33", 7654, null);
         I2PServerSocket serverSocket = manager.getServerSocket();
         I2PSession session = manager.getSession();
 

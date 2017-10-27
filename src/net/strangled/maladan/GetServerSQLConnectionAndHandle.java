@@ -2,9 +2,9 @@ package net.strangled.maladan;
 
 
 import net.MaladaN.Tor.thoughtcrime.GetSQLConnection;
-import net.MaladaN.Tor.thoughtcrime.MMessageObject;
 import net.MaladaN.Tor.thoughtcrime.SendInitData;
-import net.strangled.maladan.serializables.ServerInit;
+import net.strangled.maladan.serializables.Authentication.ServerInit;
+import net.strangled.maladan.serializables.Messaging.MMessageObject;
 
 import java.io.*;
 import java.sql.Connection;
