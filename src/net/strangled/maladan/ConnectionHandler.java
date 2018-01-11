@@ -117,6 +117,16 @@ public class ConnectionHandler implements Runnable {
         }
     }
 
+    /*
+     *  This method takes the ServerInit object sent in from the user, checks to make sure that the user has a valid
+     *  unique id, then stores the connection information of the new client.
+     *
+     *  A pre key bundle is then sent back to the client, so that all future communications can be done within a signal
+     *  session.
+     *
+     *  After receiving the bundle, the client will respond with their password encrypted using the new session.
+     */
+
     private void register(ServerInit init) throws Exception {
         System.out.println("Registering a user for the first Time.");
 
@@ -139,6 +149,13 @@ public class ConnectionHandler implements Runnable {
         }
     }
 
+    /*
+     *  After a new user has registered their new username for the first time, they will respond with their password,
+     *  encrypted using the new session that was established in the register method. This method takes the encrypted
+     *  password message as a parameter, and then decrypts it, hashes it, and adds it to the user's record in the
+     *  database.
+     */
+
     private void addPasswordToAccount(SignalEncryptedPasswordSend password) throws Exception {
         String username = password.getUsername();
         byte[] decryptedPasswordHash = SignalCrypto.decryptMessage(password.getSerializedPassword(), new SignalProtocolAddress(username, 0));
@@ -156,6 +173,12 @@ public class ConnectionHandler implements Runnable {
             outThread.addNewMessage(encryptedRegistrationResponseState);
         }
     }
+
+    /*
+     *  This method handles the authentication of existing users in the database. If the user's credentials are valid,
+     *  they will be granted a valid session with the server, and be able to send messages to other users. Otherwise they
+     *  will be sent a response notifying them that their credentials are invalid.
+     */
 
     private void loginAccount(ServerLogin login) throws Exception {
         String username = login.getEncodedHashedUsername();
@@ -200,6 +223,12 @@ public class ConnectionHandler implements Runnable {
         }
     }
 
+    /*
+     *  This method is called when a user wants to send a message to another user for the first time. The requesting user
+     *  sends the server the destination user's username, and the server responds with public key information for the
+     *  destination user, so that the requesting user can build a new signal session with the destination user.
+     */
+
     private void respondWithUserInformation(EncryptedUser encryptedUser) throws Exception {
 
         if (session != null) {
@@ -228,12 +257,22 @@ public class ConnectionHandler implements Runnable {
         }
     }
 
+    /*
+     *  This method handles messages received by the server that are destined for clients. It queues them in the
+     *  database until the destination user is available to receive the message.
+     */
+
     private void handleAndQueueMessageObject(EncryptedMMessageObject encryptedObject) throws Exception {
         byte[] serializedMMessageObject = SignalCrypto.decryptMessage(encryptedObject.getEncryptedSerializedMMessageObject(), new SignalProtocolAddress(session.getUsername(), 0));
         MMessageObject object = (MMessageObject) Server.reconstructSerializedObject(serializedMMessageObject);
 
         GetServerSQLConnectionAndHandle.storePendingMessage(object.getDestinationUser(), object);
     }
+
+    /*
+     *  This method is used to encrypt authentication responses to users, telling client applications whether they now
+     *  have a valid session or not.
+     */
 
     private void encryptAndSendLoginState(LoginResponseState state) throws Exception {
         byte[] encryptedState = SignalCrypto.encryptByteMessage(Server.serializeObject(state), new SignalProtocolAddress(this.session.getUsername(), 0), null);
