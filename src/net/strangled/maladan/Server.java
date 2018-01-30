@@ -34,7 +34,7 @@ public class Server {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
+        //This is where to change the address and port to reflect your i2cp host.
         I2PSocketManager manager = I2PSocketManagerFactory.createManager(file, "1.1.1.33", 7654, null);
         I2PServerSocket serverSocket = manager.getServerSocket();
         I2PSession session = manager.getSession();
