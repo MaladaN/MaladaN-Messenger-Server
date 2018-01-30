@@ -1,5 +1,7 @@
 package net.strangled.maladan;
 
+import de.mkammerer.argon2.Argon2Advanced;
+import de.mkammerer.argon2.Argon2Factory;
 import net.MaladaN.Tor.thoughtcrime.InitData;
 import net.MaladaN.Tor.thoughtcrime.SignalCrypto;
 import net.i2p.client.I2PSession;
@@ -13,8 +15,11 @@ import net.strangled.maladan.serializables.Authentication.ServerInit;
 import java.io.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 
 public class Server {
+
+    private static SecureRandom secureRandom = new SecureRandom();
 
     public static void main(String[] args) {
         //Initialize application
@@ -76,10 +81,20 @@ public class Server {
         return in.readObject();
     }
 
-    static byte[] hashData(String data) throws NoSuchAlgorithmException {
-        return hashData(data.getBytes());
+    private static byte[] generateSalt() {
+        byte[] salt = new byte[32];
+        secureRandom.nextBytes(salt);
+        return salt;
     }
 
+    static byte[] hashDataWithSalt(String data) throws NoSuchAlgorithmException {
+        Argon2Advanced argon2 = Argon2Factory.createAdvanced();
+        byte[] salt = generateSalt();
+        byte[] saltedHash = argon2.rawHash(2, 65536, 4, data, salt);
+        return saltedHash;
+    }
+
+    //user only for hashing username
     static byte[] hashData(byte[] data) throws NoSuchAlgorithmException {
         MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
         messageDigest.update(data);
