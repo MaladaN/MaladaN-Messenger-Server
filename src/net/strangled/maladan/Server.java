@@ -19,8 +19,6 @@ import java.security.SecureRandom;
 
 public class Server {
 
-    private static SecureRandom secureRandom = new SecureRandom();
-
     public static void main(String[] args) {
         //Initialize application
 
@@ -81,12 +79,6 @@ public class Server {
         return in.readObject();
     }
 
-    private static byte[] generateSalt() {
-        byte[] salt = new byte[32];
-        secureRandom.nextBytes(salt);
-        return salt;
-    }
-
     static String hashDataWithSalt(String data) {
         Argon2 argon2 = Argon2Factory.create();
         return argon2.hash(2, 65536, 4, data);
@@ -95,13 +87,6 @@ public class Server {
     static boolean verifyHash(String hash, String pass) {
         Argon2 argon2 = Argon2Factory.create();
         return argon2.verify(hash, pass);
-    }
-
-    //used only for hashing username
-    static byte[] hashData(byte[] data) throws NoSuchAlgorithmException {
-        MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
-        messageDigest.update(data);
-        return messageDigest.digest();
     }
 
 }

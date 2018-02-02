@@ -165,14 +165,17 @@ class GetServerSQLConnectionAndHandle {
         try {
 
             if (conn != null) {
-                String sql = "SELECT * FROM serverSignalCryptoData WHERE username = ? AND hashedPassword = ?";
+                String sql = "SELECT hashedPassword FROM serverSignalCryptoData WHERE username = ?";
                 PreparedStatement ps = conn.prepareStatement(sql);
                 ps.setString(1, username);
 
-                //TODO need to retrieve hash from the database to verify.
-                ps.setBytes(2, );
                 ResultSet rs = ps.executeQuery();
-                boolean valid = rs.next();
+                boolean valid = false;
+
+                while (rs.next()) {
+                    String passwordHash = rs.getString("hashedPassword");
+                    valid = Server.verifyHash(passwordHash, password);
+                }
                 conn.close();
                 return valid;
             }
