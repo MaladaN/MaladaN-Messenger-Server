@@ -185,9 +185,9 @@ public class ConnectionHandler implements Runnable {
 
         if (GetServerSQLConnectionAndHandle.userExists(username)) {
 
-            byte[] decryptedPasswordHash = SignalCrypto.decryptMessage(login.getEncryptedPassword(), new SignalProtocolAddress(username, 0));
+            String decryptedPassword = SignalCrypto.decryptStringMessage(login.getEncryptedPassword(), new SignalProtocolAddress(username, 0));
 
-            boolean credentialsValid = GetServerSQLConnectionAndHandle.authenticateCredentials(username, decryptedPasswordHash);
+            boolean credentialsValid = GetServerSQLConnectionAndHandle.authenticateCredentials(username, decryptedPassword);
             boolean keyValid = false;
 
             SendInitData data = GetServerSQLConnectionAndHandle.getConnectionInfo(username);
