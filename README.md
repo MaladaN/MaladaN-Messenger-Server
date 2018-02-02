@@ -6,8 +6,6 @@ Development IDE: Intellij IDEA
 # Required Libraries:
 com.h2database:h2:1.4.195
 
-de.mkammerer:argon2-jvm:2.3
-
 net.i2p.client:streaming:0.9.30
 
 net.i2p:i2p:0.9.30
