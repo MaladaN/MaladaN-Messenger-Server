@@ -126,7 +126,7 @@ public class ConnectionHandler implements Runnable {
      *  After receiving the bundle, the client will respond with their password encrypted using the new session.
      */
 
-    private void register(ServerInit init) throws Exception {
+    private void register(ServerInit init) {
         System.out.println("Registering a user for the first Time.");
 
         if (init.getUniqueId().equals("tester123")) {
