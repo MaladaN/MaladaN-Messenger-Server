@@ -10,7 +10,6 @@ import net.strangled.maladan.serializables.Messaging.MMessageObject;
 import org.whispersystems.libsignal.IdentityKey;
 import org.whispersystems.libsignal.SignalProtocolAddress;
 
-import javax.xml.bind.DatatypeConverter;
 import java.io.EOFException;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
@@ -127,7 +126,7 @@ public class ConnectionHandler implements Runnable {
      *  After receiving the bundle, the client will respond with their password encrypted using the new session.
      */
 
-    private void register(ServerInit init) throws Exception {
+    private void register(ServerInit init) {
         System.out.println("Registering a user for the first Time.");
 
         if (init.getUniqueId().equals("tester123")) {
@@ -136,7 +135,7 @@ public class ConnectionHandler implements Runnable {
             GetServerSQLConnectionAndHandle.storeConnectionInfo(init);
 
             //send the server preKeyBundle to the client.
-            SendInitData data = GetServerSQLConnectionAndHandle.getConnectionInfo("SERVER".getBytes());
+            SendInitData data = GetServerSQLConnectionAndHandle.getConnectionInfo("SERVER");
 
             if (data != null) {
                 ServerResponsePreKeyBundle ps = data.getServerResponsePreKeyBundle();
@@ -158,15 +157,16 @@ public class ConnectionHandler implements Runnable {
 
     private void addPasswordToAccount(SignalEncryptedPasswordSend password) throws Exception {
         String username = password.getUsername();
-        byte[] decryptedPasswordHash = SignalCrypto.decryptMessage(password.getSerializedPassword(), new SignalProtocolAddress(username, 0));
-        byte[] decodedUsername = DatatypeConverter.parseBase64Binary(password.getUsername());
-        RegistrationResponseState registrationResponseState = new RegistrationResponseState(GetServerSQLConnectionAndHandle.addPasswordToCompleteAccount(decodedUsername, decryptedPasswordHash));
+
+        String decryptedPassword = SignalCrypto.decryptStringMessage(password.getSerializedPassword(), new SignalProtocolAddress(username, 0));
+        RegistrationResponseState registrationResponseState = new RegistrationResponseState(GetServerSQLConnectionAndHandle.addPasswordToCompleteAccount(username, decryptedPassword));
 
         if (registrationResponseState.isValidRegistration()) {
             System.out.println("Added Account Password Successfully.");
 
             byte[] serializedRegistrationResponseState = Server.serializeObject(registrationResponseState);
-            EncryptedRegistrationResponseState encryptedRegistrationResponseState = new EncryptedRegistrationResponseState(SignalCrypto.encryptByteMessage(serializedRegistrationResponseState, new SignalProtocolAddress(username, 0), null));
+            EncryptedRegistrationResponseState encryptedRegistrationResponseState =
+                    new EncryptedRegistrationResponseState(SignalCrypto.encryptByteMessage(serializedRegistrationResponseState, new SignalProtocolAddress(username, 0), null));
 
             this.session = new User(true, username);
 
@@ -181,17 +181,16 @@ public class ConnectionHandler implements Runnable {
      */
 
     private void loginAccount(ServerLogin login) throws Exception {
-        String username = login.getEncodedHashedUsername();
-        byte[] parsedUsername = DatatypeConverter.parseBase64Binary(username);
+        String username = login.getUsername();
 
-        if (GetServerSQLConnectionAndHandle.userExists(parsedUsername)) {
+        if (GetServerSQLConnectionAndHandle.userExists(username)) {
 
-            byte[] decryptedPasswordHash = SignalCrypto.decryptMessage(login.getEncryptedPassword(), new SignalProtocolAddress(username, 0));
+            String decryptedPassword = SignalCrypto.decryptStringMessage(login.getEncryptedPassword(), new SignalProtocolAddress(username, 0));
 
-            boolean credentialsValid = GetServerSQLConnectionAndHandle.authenticateCredentials(parsedUsername, decryptedPasswordHash);
+            boolean credentialsValid = GetServerSQLConnectionAndHandle.authenticateCredentials(username, decryptedPassword);
             boolean keyValid = false;
 
-            SendInitData data = GetServerSQLConnectionAndHandle.getConnectionInfo(parsedUsername);
+            SendInitData data = GetServerSQLConnectionAndHandle.getConnectionInfo(username);
             if (data != null) {
                 IdentityKey serverKey = data.getIdKey();
                 IdentityKey userSentKey = new IdentityKey(login.getSerializedIdentityKey(), 0);
@@ -236,8 +235,7 @@ public class ConnectionHandler implements Runnable {
             byte[] serializedUserObject = SignalCrypto.decryptMessage(encryptedUser.getEncryptedSerializedUser(), new SignalProtocolAddress(session.getUsername(), 0));
             User user = (User) Server.reconstructSerializedObject(serializedUserObject);
 
-            byte[] actualUsername = DatatypeConverter.parseBase64Binary(user.getUsername());
-            SendInitData data = GetServerSQLConnectionAndHandle.getConnectionInfo(actualUsername);
+            SendInitData data = GetServerSQLConnectionAndHandle.getConnectionInfo(user.getUsername());
 
             if (data != null) {
 

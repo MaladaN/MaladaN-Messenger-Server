@@ -73,7 +73,7 @@ public class GetSQLConnection {
             //Server Data Table
 
             String sql = "CREATE TABLE IF NOT EXISTS serverSignalCryptoData (id int(10) unsigned NOT NULL AUTO_INCREMENT," +
-                    "hashedUsername longblob, hashedPassword longblob, pullableInitData longblob, uniqueId varchar(128),PRIMARY KEY (id))";
+                    "username VARCHAR(128), hashedPassword VARCHAR(256), pullableInitData longblob, uniqueId varchar(128),PRIMARY KEY (id))";
             ps = conn.prepareStatement(sql);
             ps.execute();
 

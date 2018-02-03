@@ -1,6 +1,6 @@
 package net.strangled.maladan;
 
-import de.mkammerer.argon2.Argon2Advanced;
+import de.mkammerer.argon2.Argon2;
 import de.mkammerer.argon2.Argon2Factory;
 import net.MaladaN.Tor.thoughtcrime.InitData;
 import net.MaladaN.Tor.thoughtcrime.SignalCrypto;
@@ -18,8 +18,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 
 public class Server {
-
-    private static SecureRandom secureRandom = new SecureRandom();
 
     public static void main(String[] args) {
         //Initialize application
@@ -46,7 +44,7 @@ public class Server {
             InitData data = SignalCrypto.initStore();
 
             if (data != null) {
-                ServerInit init = new ServerInit("SERVER".getBytes(), "SERVER", data);
+                ServerInit init = new ServerInit("SERVER", "SERVER", data);
                 GetServerSQLConnectionAndHandle.storeConnectionInfo(init);
             }
 
@@ -81,24 +79,14 @@ public class Server {
         return in.readObject();
     }
 
-    private static byte[] generateSalt() {
-        byte[] salt = new byte[32];
-        secureRandom.nextBytes(salt);
-        return salt;
+    static String hashDataWithSalt(String data) {
+        Argon2 argon2 = Argon2Factory.create();
+        return argon2.hash(2, 65536, 4, data);
     }
 
-    static byte[] hashDataWithSalt(String data) throws NoSuchAlgorithmException {
-        Argon2Advanced argon2 = Argon2Factory.createAdvanced();
-        byte[] salt = generateSalt();
-        byte[] saltedHash = argon2.rawHash(2, 65536, 4, data, salt);
-        return saltedHash;
-    }
-
-    //user only for hashing username
-    static byte[] hashData(byte[] data) throws NoSuchAlgorithmException {
-        MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
-        messageDigest.update(data);
-        return messageDigest.digest();
+    static boolean verifyHash(String hash, String pass) {
+        Argon2 argon2 = Argon2Factory.create();
+        return argon2.verify(hash, pass);
     }
 
 }

@@ -24,9 +24,9 @@ class GetServerSQLConnectionAndHandle {
                 Connection conn = GetSQLConnection.getConn();
 
                 if (conn != null) {
-                    String sql = "INSERT INTO serverSignalCryptoData (hashedUsername, pullableInitData, uniqueId) VALUES (?, ?, ?)";
+                    String sql = "INSERT INTO serverSignalCryptoData (username, pullableInitData, uniqueId) VALUES (?, ?, ?)";
                     PreparedStatement ps = conn.prepareStatement(sql);
-                    ps.setBytes(1, Server.hashData(init.getUsername()));
+                    ps.setString(1, init.getUsername());
 
                     ObjectOutput out;
                     out = new ObjectOutputStream(bos);
@@ -50,7 +50,7 @@ class GetServerSQLConnectionAndHandle {
         }
     }
 
-    static boolean addPasswordToCompleteAccount(byte[] username, byte[] password) {
+    static boolean addPasswordToCompleteAccount(String username, String password) {
 
         if (userExists(username)) {
             Connection conn = GetSQLConnection.getConn();
@@ -58,10 +58,13 @@ class GetServerSQLConnectionAndHandle {
             if (conn != null) {
 
                 try {
-                    String sql = "UPDATE serverSignalCryptoData SET hashedPassword = ? WHERE hashedUsername = ?";
+                    String sql = "UPDATE serverSignalCryptoData SET hashedPassword = ? WHERE username = ?";
                     PreparedStatement ps = conn.prepareStatement(sql);
-                    ps.setBytes(1, Server.hashData(password));
-                    ps.setBytes(2, Server.hashData(username));
+
+                    String hash = Server.hashDataWithSalt(password);
+
+                    ps.setString(1, hash);
+                    ps.setString(2, username);
                     ps.execute();
                     conn.close();
                     return true;
@@ -80,14 +83,14 @@ class GetServerSQLConnectionAndHandle {
         }
     }
 
-    static SendInitData getConnectionInfo(byte[] hashedUsername) {
+    static SendInitData getConnectionInfo(String username) {
         try {
             Connection conn = GetSQLConnection.getConn();
 
             if (conn != null) {
-                String sql = "SELECT pullableInitData FROM serverSignalCryptoData WHERE hashedUsername = ?";
+                String sql = "SELECT pullableInitData FROM serverSignalCryptoData WHERE username = ?";
                 PreparedStatement ps = conn.prepareStatement(sql);
-                ps.setBytes(1, Server.hashData(hashedUsername));
+                ps.setString(1, username);
                 ResultSet rs = ps.executeQuery();
 
                 if (rs.next()) {
@@ -117,16 +120,16 @@ class GetServerSQLConnectionAndHandle {
         return null;
     }
 
-    static void removeConnectionInfo(byte[] hashedUsername) {
+    static void removeConnectionInfo(String username) {
         //Executed by a user to scrub their preKeys from the server.
 
         try {
             Connection conn = GetSQLConnection.getConn();
 
             if (conn != null) {
-                String sql = "DELETE FROM serverSignalCryptoData WHERE hashedUsername = ?";
+                String sql = "DELETE FROM serverSignalCryptoData WHERE username = ?";
                 PreparedStatement ps = conn.prepareStatement(sql);
-                ps.setBytes(1, Server.hashData(hashedUsername));
+                ps.setString(1, username);
                 ps.execute();
                 conn.close();
             }
@@ -136,15 +139,15 @@ class GetServerSQLConnectionAndHandle {
         }
     }
 
-    static boolean userExists(byte[] hashedUsername) {
+    static boolean userExists(String username) {
 
         try {
             Connection conn = GetSQLConnection.getConn();
 
             if (conn != null) {
-                String sql = "SELECT * FROM serverSignalCryptoData WHERE hashedUsername = ?";
+                String sql = "SELECT * FROM serverSignalCryptoData WHERE username = ?";
                 PreparedStatement ps = conn.prepareStatement(sql);
-                ps.setBytes(1, Server.hashData(hashedUsername));
+                ps.setString(1, username);
                 ResultSet rs = ps.executeQuery();
                 boolean returnable = rs.next();
                 conn.close();
@@ -156,18 +159,23 @@ class GetServerSQLConnectionAndHandle {
         return false;
     }
 
-    static boolean authenticateCredentials(byte[] username, byte[] password) {
+    static boolean authenticateCredentials(String username, String password) {
         Connection conn = GetSQLConnection.getConn();
 
         try {
 
             if (conn != null) {
-                String sql = "SELECT * FROM serverSignalCryptoData WHERE hashedUsername = ? AND hashedPassword = ?";
+                String sql = "SELECT hashedPassword FROM serverSignalCryptoData WHERE username = ?";
                 PreparedStatement ps = conn.prepareStatement(sql);
-                ps.setBytes(1, Server.hashData(username));
-                ps.setBytes(2, Server.hashData(password));
+                ps.setString(1, username);
+
                 ResultSet rs = ps.executeQuery();
-                boolean valid = rs.next();
+                boolean valid = false;
+
+                while (rs.next()) {
+                    String passwordHash = rs.getString("hashedPassword");
+                    valid = Server.verifyHash(passwordHash, password);
+                }
                 conn.close();
                 return valid;
             }
