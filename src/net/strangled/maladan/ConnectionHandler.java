@@ -5,8 +5,7 @@ import net.MaladaN.Tor.thoughtcrime.ServerResponsePreKeyBundle;
 import net.MaladaN.Tor.thoughtcrime.SignalCrypto;
 import net.i2p.client.streaming.I2PSocket;
 import net.strangled.maladan.serializables.Authentication.*;
-import net.strangled.maladan.serializables.Messaging.EncryptedMMessageObject;
-import net.strangled.maladan.serializables.Messaging.MMessageObject;
+import net.strangled.maladan.serializables.Messaging.*;
 import org.whispersystems.libsignal.IdentityKey;
 import org.whispersystems.libsignal.SignalProtocolAddress;
 
@@ -90,6 +89,14 @@ public class ConnectionHandler implements Runnable {
                     EncryptedMMessageObject messageObject = (EncryptedMMessageObject) incoming;
                     handleAndQueueMessageObject(messageObject);
 
+                } else if (incoming instanceof EncryptedFileInitiation) {
+                    System.out.println("Received the start of a file");
+
+                } else if (incoming instanceof EncryptedFileSpan) {
+                    System.out.println("Received a span piece of file");
+
+                } else if (incoming instanceof EncryptedFileEnd) {
+                    System.out.println("Received End of File");
                 }
 
             }
