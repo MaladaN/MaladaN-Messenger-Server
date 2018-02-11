@@ -11,7 +11,6 @@ import org.whispersystems.libsignal.SignalProtocolAddress;
 
 import java.io.EOFException;
 import java.io.ObjectInputStream;
-import java.util.ArrayList;
 
 public class ConnectionHandler implements Runnable {
     private Thread t;
@@ -20,6 +19,21 @@ public class ConnectionHandler implements Runnable {
     private ObjectInputStream in;
     private OutgoingMessageThread outThread;
     private boolean running = true;
+
+    public User getSession() {
+        if (session != null) {
+            return new User(this.session.isLoggedIn(), this.session.getUsername());
+        }
+        return null;
+    }
+
+    public OutgoingMessageThread getOutThread() {
+        return outThread;
+    }
+
+    public boolean isRunning() {
+        return running;
+    }
 
     ConnectionHandler(I2PSocket sock) {
         this.sock = sock;
@@ -32,37 +46,8 @@ public class ConnectionHandler implements Runnable {
             outThread = new OutgoingMessageThread(sock.getOutputStream());
             outThread.start();
 
-            Thread t = new Thread(() -> {
-
-                ArrayList<MMessageObject> messageForYouSir;
-
-                while (running) {
-                    try {
-                        Thread.sleep(1000);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-
-                    if (session != null && !(messageForYouSir = GetServerSQLConnectionAndHandle.getPendingMessagesForClient(session.getUsername())).isEmpty()) {
-
-                        for (MMessageObject o : messageForYouSir) {
-
-                            try {
-                                byte[] serializedMMessageObject = Server.serializeObject(o);
-                                byte[] encryptedSerializedMessageObject = SignalCrypto.encryptByteMessage(serializedMMessageObject, new SignalProtocolAddress(session.getUsername(), 0), null);
-                                EncryptedMMessageObject object = new EncryptedMMessageObject(encryptedSerializedMessageObject);
-
-                                outThread.addNewMessage(object);
-                                GetServerSQLConnectionAndHandle.removePendingMessages(session.getUsername());
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                }
-
-            });
-            t.start();
+            SendMessageToClientThread messageThread = new SendMessageToClientThread(this);
+            messageThread.start();
 
             while (true) {
                 Object incoming = in.readObject();
