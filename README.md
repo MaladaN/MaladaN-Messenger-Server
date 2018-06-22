@@ -4,15 +4,15 @@ MaladaN Messenger Server End for messaging using the signal protocol through I2P
 Development IDE: Intellij IDEA
 
 # Required Libraries:
-com.h2database:h2:1.4.195
+com.h2database:h2:1.4.197
 
-de.mkammerer:argon2-jvm:2.3
+de.mkammerer:argon2-jvm:2.4
 
-net.i2p.client:streaming:0.9.30
+net.i2p.client:streaming:0.9.34
 
-net.i2p:i2p:0.9.30
+net.i2p:i2p:0.9.34
 
-org.whispersystems:signal-protocol-java:2.4.0
+org.whispersystems:signal-protocol-java:2.6.2
 
 # Legal things
 Cryptography Notice
