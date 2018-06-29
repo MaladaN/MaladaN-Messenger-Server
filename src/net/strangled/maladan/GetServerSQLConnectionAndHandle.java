@@ -6,7 +6,10 @@ import net.MaladaN.Tor.thoughtcrime.SendInitData;
 import net.strangled.maladan.serializables.Authentication.ServerInit;
 import net.strangled.maladan.serializables.Messaging.MMessageObject;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -16,7 +19,6 @@ import java.util.ArrayList;
 class GetServerSQLConnectionAndHandle {
 
     static void storeConnectionInfo(ServerInit init) {
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
 
         if (!userExists(init.getUsername())) {
 
@@ -28,11 +30,8 @@ class GetServerSQLConnectionAndHandle {
                     PreparedStatement ps = conn.prepareStatement(sql);
                     ps.setString(1, init.getUsername());
 
-                    ObjectOutput out;
-                    out = new ObjectOutputStream(bos);
-                    out.writeObject(init.getInitData());
-                    out.flush();
-                    ps.setBytes(2, bos.toByteArray());
+
+                    ps.setBytes(2, Server.serializeObject(init.getInitData()));
                     ps.setString(3, init.getUniqueId());
                     ps.execute();
                     conn.close();
@@ -40,13 +39,26 @@ class GetServerSQLConnectionAndHandle {
 
             } catch (Exception e) {
                 e.printStackTrace();
-            } finally {
-                try {
-                    bos.close();
-                } catch (IOException ex) {
-                    // ignore close exception
-                }
             }
+        }
+    }
+
+    static synchronized void updateConnectionInfo(SendInitData updatedData, String username) {
+        try {
+            Connection conn = GetSQLConnection.getConn();
+
+            if (conn != null) {
+                String sql = "UPDATE serverSignalCryptoData SET pullableInitData = ? WHERE username = ?";
+
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setBytes(1, Server.serializeObject(updatedData));
+                ps.setString(2, username);
+                ps.execute();
+
+                conn.close();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
