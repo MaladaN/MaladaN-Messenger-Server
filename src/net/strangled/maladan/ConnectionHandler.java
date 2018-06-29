@@ -118,7 +118,7 @@ public class ConnectionHandler implements Runnable {
      *  After receiving the bundle, the client will respond with their password encrypted using the new session.
      */
 
-    private void register(ServerInit init) {
+    private void register(ServerInit init) throws Exception {
         System.out.println("Registering a user for the first Time.");
 
         if (init.getUniqueId().equals("tester123")) {
@@ -131,8 +131,21 @@ public class ConnectionHandler implements Runnable {
 
             if (data != null) {
                 ServerResponsePreKeyBundle ps = data.getServerResponsePreKeyBundle();
+
+                //check if we are out of pre keys. If we are, generate more.
+                if (ps == null) {
+                    data = Server.addMorePreKeys(data);
+                    if (data != null) {
+                        ps = data.getServerResponsePreKeyBundle();
+                    } else {
+                        throw new Exception("Error. The system was unable to add more prekeys to the server account.");
+                    }
+                }
                 outThread.addNewMessage(ps);
                 System.out.println("Added Username Successfully!");
+
+                //update data saved in the database with the now removed pre key
+                GetServerSQLConnectionAndHandle.updateConnectionInfo(data, "SERVER");
             }
 
         } else {

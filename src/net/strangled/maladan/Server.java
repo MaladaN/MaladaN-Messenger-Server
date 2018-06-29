@@ -3,6 +3,7 @@ package net.strangled.maladan;
 import de.mkammerer.argon2.Argon2;
 import de.mkammerer.argon2.Argon2Factory;
 import net.MaladaN.Tor.thoughtcrime.InitData;
+import net.MaladaN.Tor.thoughtcrime.SendInitData;
 import net.MaladaN.Tor.thoughtcrime.SignalCrypto;
 import net.i2p.client.I2PSession;
 import net.i2p.client.streaming.I2PServerSocket;
@@ -11,11 +12,11 @@ import net.i2p.client.streaming.I2PSocketManager;
 import net.i2p.client.streaming.I2PSocketManagerFactory;
 import net.i2p.data.PrivateKeyFile;
 import net.strangled.maladan.serializables.Authentication.ServerInit;
+import org.whispersystems.libsignal.state.PreKeyRecord;
+import org.whispersystems.libsignal.util.KeyHelper;
 
 import java.io.*;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
+import java.util.List;
 
 public class Server {
 
@@ -33,7 +34,7 @@ public class Server {
             e.printStackTrace();
         }
         //This is where to change the address and port to reflect your i2cp host.
-        I2PSocketManager manager = I2PSocketManagerFactory.createManager(file, "1.1.1.33", 7654, null);
+        I2PSocketManager manager = I2PSocketManagerFactory.createManager(file, "10.0.0.32", 7654, null);
         I2PServerSocket serverSocket = manager.getServerSocket();
         I2PSession session = manager.getSession();
 
@@ -66,17 +67,34 @@ public class Server {
     }
 
     static byte[] serializeObject(Object object) throws IOException {
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        ObjectOutput out = new ObjectOutputStream(bos);
-        out.writeObject(object);
-        out.flush();
-        return bos.toByteArray();
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+            ObjectOutput out = new ObjectOutputStream(bos);
+            out.writeObject(object);
+            out.flush();
+            return bos.toByteArray();
+        }
     }
 
     static Object reconstructSerializedObject(byte[] object) throws Exception {
-        ByteArrayInputStream bis = new ByteArrayInputStream(object);
-        ObjectInput in = new ObjectInputStream(bis);
-        return in.readObject();
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(object)) {
+            ObjectInput in = new ObjectInputStream(bis);
+            return in.readObject();
+        }
+    }
+
+    static synchronized SendInitData addMorePreKeys(SendInitData data) {
+        SendInitData checkData = GetServerSQLConnectionAndHandle.getConnectionInfo("SERVER");
+        int numberOfKeys = 0;
+
+        if (checkData != null && (numberOfKeys = checkData.getNumberOfPreKeys()) == 0) {
+            List<PreKeyRecord> records = KeyHelper.generatePreKeys(2, 1000);
+            data.addPreKeys(records);
+            return data;
+
+        } else if (numberOfKeys > 0) {
+            return checkData;
+        }
+        return null;
     }
 
     static String hashDataWithSalt(String data) {
