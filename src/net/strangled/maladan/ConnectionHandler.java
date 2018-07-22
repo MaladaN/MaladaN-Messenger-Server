@@ -20,18 +20,18 @@ public class ConnectionHandler implements Runnable {
     private OutgoingMessageThread outThread;
     private boolean running = true;
 
-    public User getSession() {
+    User getSession() {
         if (session != null) {
-            return new User(this.session.isLoggedIn(), this.session.getUsername());
+            return new User(session.isLoggedIn(), session.getUsername());
         }
         return null;
     }
 
-    public OutgoingMessageThread getOutThread() {
+    OutgoingMessageThread getOutThread() {
         return outThread;
     }
 
-    public boolean isRunning() {
+    boolean isRunning() {
         return running;
     }
 
@@ -46,10 +46,11 @@ public class ConnectionHandler implements Runnable {
             outThread = new OutgoingMessageThread(sock.getOutputStream());
             outThread.start();
 
+            //start message handling thread for the user that this thread handles
             SendMessageToClientThread messageThread = new SendMessageToClientThread(this);
             messageThread.start();
 
-            while (true) {
+            while (running) {
                 Object incoming = in.readObject();
 
                 if (incoming instanceof IEncryptedAuth) {
@@ -142,12 +143,15 @@ public class ConnectionHandler implements Runnable {
                 //check if we are out of pre keys. If we are, generate more.
                 if (ps == null) {
                     data = Server.addMorePreKeys(data);
+
                     if (data != null) {
                         ps = data.getServerResponsePreKeyBundle();
+
                     } else {
-                        throw new Exception("Error. The system was unable to add more prekeys to the server account.");
+                        throw new Exception("Error. The system was unable to add more pre-keys to the server account.");
                     }
                 }
+
                 outThread.addNewMessage(ps);
                 System.out.println("Added Username Successfully!");
 
@@ -207,6 +211,8 @@ public class ConnectionHandler implements Runnable {
 
             SendInitData data = GetServerSQLConnectionAndHandle.getConnectionInfo(username);
             if (data != null) {
+                //make sure that the key the user sends with their login matches the key that the server has
+                //on record
                 IdentityKey serverKey = data.getIdKey();
                 IdentityKey userSentKey = new IdentityKey(login.getSerializedIdentityKey(), 0);
 
@@ -252,11 +258,16 @@ public class ConnectionHandler implements Runnable {
 
             User user = (User) Server.reconstructSerializedObject(serializedUserObject);
 
-            SendInitData data = GetServerSQLConnectionAndHandle.getConnectionInfo(user.getUsername());
+            String requestedUserUsername = user.getUsername();
+
+            SendInitData data = GetServerSQLConnectionAndHandle.getConnectionInfo(requestedUserUsername);
 
             if (data != null) {
 
                 ServerResponsePreKeyBundle bundle = data.getServerResponsePreKeyBundle();
+
+                //update user the record was pulled from, as it now has one less pre key
+                GetServerSQLConnectionAndHandle.updateConnectionInfo(data, requestedUserUsername);
 
                 byte[] serializedServerResponsePreKeyBundle = Server.serializeObject(bundle);
                 byte[] encryptedSerializedServerResponseBundle = SignalCrypto.encryptByteMessage(serializedServerResponsePreKeyBundle,
