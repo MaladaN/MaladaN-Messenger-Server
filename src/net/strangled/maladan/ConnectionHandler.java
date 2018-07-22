@@ -52,36 +52,43 @@ public class ConnectionHandler implements Runnable {
             while (true) {
                 Object incoming = in.readObject();
 
-                if (incoming instanceof ServerInit) {
-                    ServerInit init = (ServerInit) incoming;
-                    register(init);
+                if (incoming instanceof IEncryptedAuth) {
+                    if (incoming instanceof EncryptedUser) {
+                        EncryptedUser requestedUser = (EncryptedUser) incoming;
+                        respondWithUserInformation(requestedUser);
+                    }
 
-                } else if (incoming instanceof SignalEncryptedPasswordSend) {
-                    //receive the user password encrypted with the newly created session between the client and server.
-                    SignalEncryptedPasswordSend passwordSend = (SignalEncryptedPasswordSend) incoming;
-                    addPasswordToAccount(passwordSend);
+                } else if (incoming instanceof IEncryptedMessage) {
+                    if (incoming instanceof EncryptedMMessageObject) {
+                        EncryptedMMessageObject messageObject = (EncryptedMMessageObject) incoming;
+                        handleAndQueueMessageObject(messageObject);
 
-                    //Account Valid. Proceed To Login (With encrypted Session)
-                } else if (incoming instanceof ServerLogin) {
-                    ServerLogin login = (ServerLogin) incoming;
-                    loginAccount(login);
+                    } else if (incoming instanceof EncryptedFileInitiation) {
+                        System.out.println("Received the start of a file");
 
-                } else if (incoming instanceof EncryptedUser) {
-                    EncryptedUser requestedUser = (EncryptedUser) incoming;
-                    respondWithUserInformation(requestedUser);
+                    } else if (incoming instanceof EncryptedFileSpan) {
+                        System.out.println("Received a span piece of file");
 
-                } else if (incoming instanceof EncryptedMMessageObject) {
-                    EncryptedMMessageObject messageObject = (EncryptedMMessageObject) incoming;
-                    handleAndQueueMessageObject(messageObject);
+                    } else if (incoming instanceof EncryptedFileEnd) {
+                        System.out.println("Received End of File");
+                    }
 
-                } else if (incoming instanceof EncryptedFileInitiation) {
-                    System.out.println("Received the start of a file");
+                } else {
 
-                } else if (incoming instanceof EncryptedFileSpan) {
-                    System.out.println("Received a span piece of file");
+                    if (incoming instanceof ServerInit) {
+                        ServerInit init = (ServerInit) incoming;
+                        register(init);
 
-                } else if (incoming instanceof EncryptedFileEnd) {
-                    System.out.println("Received End of File");
+                    } else if (incoming instanceof ServerLogin) {
+                        ServerLogin login = (ServerLogin) incoming;
+                        loginAccount(login);
+
+                    } else if (incoming instanceof SignalEncryptedPasswordSend) {
+                        //receive the user password encrypted with the newly created session between the client and server.
+                        SignalEncryptedPasswordSend passwordSend = (SignalEncryptedPasswordSend) incoming;
+                        addPasswordToAccount(passwordSend);
+
+                    }
                 }
 
             }
@@ -170,8 +177,11 @@ public class ConnectionHandler implements Runnable {
             System.out.println("Added Account Password Successfully.");
 
             byte[] serializedRegistrationResponseState = Server.serializeObject(registrationResponseState);
-            EncryptedRegistrationResponseState encryptedRegistrationResponseState =
-                    new EncryptedRegistrationResponseState(SignalCrypto.encryptByteMessage(serializedRegistrationResponseState, new SignalProtocolAddress(username, 0), null));
+            byte[] encryptedResponse = SignalCrypto.encryptByteMessage(serializedRegistrationResponseState,
+                    new SignalProtocolAddress(username, 0), null);
+
+            IEncryptedAuth encryptedRegistrationResponseState = new EncryptedRegistrationResponseState();
+            encryptedRegistrationResponseState.storeEncryptedData(encryptedResponse);
 
             this.session = new User(true, username);
 
@@ -237,7 +247,9 @@ public class ConnectionHandler implements Runnable {
 
         if (session != null) {
 
-            byte[] serializedUserObject = SignalCrypto.decryptMessage(encryptedUser.getEncryptedSerializedUser(), new SignalProtocolAddress(session.getUsername(), 0));
+            byte[] serializedUserObject = SignalCrypto.decryptMessage(encryptedUser.getEncryptedData(),
+                    new SignalProtocolAddress(session.getUsername(), 0));
+
             User user = (User) Server.reconstructSerializedObject(serializedUserObject);
 
             SendInitData data = GetServerSQLConnectionAndHandle.getConnectionInfo(user.getUsername());
@@ -247,9 +259,11 @@ public class ConnectionHandler implements Runnable {
                 ServerResponsePreKeyBundle bundle = data.getServerResponsePreKeyBundle();
 
                 byte[] serializedServerResponsePreKeyBundle = Server.serializeObject(bundle);
-                byte[] encryptedSerializedServerResponeBundle = SignalCrypto.encryptByteMessage(serializedServerResponsePreKeyBundle, new SignalProtocolAddress(session.getUsername(), 0), null);
+                byte[] encryptedSerializedServerResponseBundle = SignalCrypto.encryptByteMessage(serializedServerResponsePreKeyBundle,
+                        new SignalProtocolAddress(session.getUsername(), 0), null);
 
-                EncryptedClientPreKeyBundle encryptedClientPreKeyBundle = new EncryptedClientPreKeyBundle(encryptedSerializedServerResponeBundle);
+                IEncryptedAuth encryptedClientPreKeyBundle = new EncryptedClientPreKeyBundle();
+                encryptedClientPreKeyBundle.storeEncryptedData(encryptedSerializedServerResponseBundle);
 
                 outThread.addNewMessage(encryptedClientPreKeyBundle);
 
@@ -266,7 +280,7 @@ public class ConnectionHandler implements Runnable {
      */
 
     private void handleAndQueueMessageObject(EncryptedMMessageObject encryptedObject) throws Exception {
-        byte[] serializedMMessageObject = SignalCrypto.decryptMessage(encryptedObject.getEncryptedSerializedMMessageObject(), new SignalProtocolAddress(session.getUsername(), 0));
+        byte[] serializedMMessageObject = SignalCrypto.decryptMessage(encryptedObject.getEncryptedMessage(), new SignalProtocolAddress(session.getUsername(), 0));
         MMessageObject object = (MMessageObject) Server.reconstructSerializedObject(serializedMMessageObject);
 
         GetServerSQLConnectionAndHandle.storePendingMessage(object.getDestinationUser(), object);
@@ -278,8 +292,11 @@ public class ConnectionHandler implements Runnable {
      */
 
     private void encryptAndSendLoginState(LoginResponseState state) throws Exception {
-        byte[] encryptedState = SignalCrypto.encryptByteMessage(Server.serializeObject(state), new SignalProtocolAddress(this.session.getUsername(), 0), null);
-        EncryptedLoginResponseState loginState = new EncryptedLoginResponseState(encryptedState);
+        byte[] encryptedState = SignalCrypto.encryptByteMessage(Server.serializeObject(state),
+                new SignalProtocolAddress(this.session.getUsername(), 0), null);
+
+        IEncryptedAuth loginState = new EncryptedLoginResponseState();
+        loginState.storeEncryptedData(encryptedState);
 
         outThread.addNewMessage(loginState);
     }
