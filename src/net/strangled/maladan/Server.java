@@ -41,6 +41,7 @@ public class Server {
         //Print the base64 string, the regular string would look like garbage.
         System.out.println(session.getMyDestination().toBase64());
 
+        //create signal server user profile
         try {
             InitData data = SignalCrypto.initStore();
 
@@ -53,6 +54,7 @@ public class Server {
             e.printStackTrace();
         }
 
+        //accept connections from users
         try {
 
             while (true) {
