@@ -12,5 +12,7 @@
     <orderEntry type="library" name="net.i2p:i2p:0.9.35" level="project" />
     <orderEntry type="library" name="org.whispersystems:signal-protocol-java:2.6.2" level="project" />
     <orderEntry type="library" name="de.mkammerer:argon2-jvm:2.4" level="project" />
+    <orderEntry type="library" name="org.quartz-scheduler:quartz:2.3.0" level="project" />
+    <orderEntry type="library" name="org.slf4j:slf4j-nop:1.7.25" level="project" />
   </component>
 </module>

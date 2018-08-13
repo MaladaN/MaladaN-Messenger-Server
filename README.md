@@ -14,6 +14,8 @@ net.i2p:i2p:0.9.35
 
 org.whispersystems:signal-protocol-java:2.6.2
 
+org.quartz-scheduler:quartz:2.3.0
+
 # Legal things
 Cryptography Notice
 

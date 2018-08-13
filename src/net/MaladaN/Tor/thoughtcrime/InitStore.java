@@ -7,7 +7,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
-class InitStore {
+public class InitStore {
     static void storeIdentityKeyPairAndRegistrationId(IdentityKeyPair identityKeyPair, int localRegistrationId) {
         Connection conn = GetSQLConnection.getConn();
         if (conn != null) {
@@ -22,6 +22,31 @@ class InitStore {
                 e.printStackTrace();
             }
         }
+    }
+
+    public static IdentityKeyPair getIdentityKeyPair() {
+        Connection conn = GetSQLConnection.getConn();
+
+        if (conn != null) {
+            String sql = "SELECT identityKeyPair FROM localIdentityStorage";
+            try {
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ResultSet rs = ps.executeQuery();
+
+                if (rs.next()) {
+                    byte[] serializedKeyPair = rs.getBytes("identityKeyPair");
+                    conn.close();
+                    return new IdentityKeyPair(serializedKeyPair);
+
+                } else {
+                    conn.close();
+                    return null;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return null;
     }
 
     static void setInstalledFlagTrue() {
