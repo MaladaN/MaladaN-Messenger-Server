@@ -1,0 +1,14 @@
+<component name="libraryTable">
+  <library name="org.quartz-scheduler:quartz:2.3.0" type="repository">
+    <properties maven-id="org.quartz-scheduler:quartz:2.3.0" />
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/org/quartz-scheduler/quartz/2.3.0/quartz-2.3.0.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/com/mchange/c3p0/0.9.5.2/c3p0-0.9.5.2.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/com/mchange/mchange-commons-java/0.2.11/mchange-commons-java-0.2.11.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/com/zaxxer/HikariCP-java6/2.3.13/HikariCP-java6-2.3.13.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/slf4j/slf4j-api/1.7.7/slf4j-api-1.7.7.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

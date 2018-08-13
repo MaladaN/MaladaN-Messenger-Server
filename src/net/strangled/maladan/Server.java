@@ -12,11 +12,19 @@ import net.i2p.client.streaming.I2PSocketManager;
 import net.i2p.client.streaming.I2PSocketManagerFactory;
 import net.i2p.data.PrivateKeyFile;
 import net.strangled.maladan.serializables.Authentication.ServerInit;
+import org.quartz.JobDetail;
+import org.quartz.Scheduler;
+import org.quartz.Trigger;
+import org.quartz.impl.StdSchedulerFactory;
 import org.whispersystems.libsignal.state.PreKeyRecord;
 import org.whispersystems.libsignal.util.KeyHelper;
 
 import java.io.*;
 import java.util.List;
+
+import static org.quartz.JobBuilder.newJob;
+import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
+import static org.quartz.TriggerBuilder.newTrigger;
 
 public class Server {
 
@@ -49,6 +57,25 @@ public class Server {
                 ServerInit init = new ServerInit("SERVER", "SERVER", data);
                 GetServerSQLConnectionAndHandle.storeConnectionInfo(init);
             }
+
+            //schedule server's signedPreKey to change once a week.
+            Scheduler jobScheduler = StdSchedulerFactory.getDefaultScheduler();
+
+            JobDetail signedPreKeyUpdateJob = newJob(signedPreKeyJob.class)
+                    .withIdentity("Pre Key Change", "Weekly")
+                    .build();
+
+            Trigger signedPreKeyUpdateTrigger = newTrigger()
+                    .withIdentity("Time Interval", "Weekly")
+                    .startNow()
+                    .withSchedule(simpleSchedule()
+                            .withIntervalInHours(168)
+                            .repeatForever())
+                    .build();
+
+            jobScheduler.scheduleJob(signedPreKeyUpdateJob, signedPreKeyUpdateTrigger);
+
+            jobScheduler.start();
 
         } catch (Exception e) {
             e.printStackTrace();
