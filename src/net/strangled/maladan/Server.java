@@ -22,8 +22,8 @@ import org.whispersystems.libsignal.util.KeyHelper;
 import java.io.*;
 import java.util.List;
 
+import static org.quartz.CronScheduleBuilder.cronSchedule;
 import static org.quartz.JobBuilder.newJob;
-import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
 import static org.quartz.TriggerBuilder.newTrigger;
 
 public class Server {
@@ -68,9 +68,7 @@ public class Server {
             Trigger signedPreKeyUpdateTrigger = newTrigger()
                     .withIdentity("Time Interval", "Weekly")
                     .startNow()
-                    .withSchedule(simpleSchedule()
-                            .withIntervalInHours(168)
-                            .repeatForever())
+                    .withSchedule(cronSchedule("0 30 4 ? * FRI *"))
                     .build();
 
             jobScheduler.scheduleJob(signedPreKeyUpdateJob, signedPreKeyUpdateTrigger);
